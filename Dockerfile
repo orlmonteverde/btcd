@@ -1,40 +1,44 @@
-# This Dockerfile builds btcd from source and creates a small (55 MB) docker container based on alpine linux.
-#
-# Clone this repository and run the following command to build and tag a fresh btcd amd64 container:
-#
-# docker build . -t yourregistry/btcd
-#
-# You can use the following command to buid an arm64v8 container:
-#
-# docker build . -t yourregistry/btcd --build-arg ARCH=arm64v8
-#
-# For more information how to use this docker image visit:
-# https://github.com/btcsuite/btcd/tree/master/docs
-#
-# 8333  Mainnet Bitcoin peer-to-peer port
-# 8334  Mainet RPC port
+FROM golang:1.15.3-alpine AS builder
 
-ARG ARCH=amd64
-
-FROM golang:1.14-alpine3.12 AS build-container
-
-ARG ARCH
-ENV GO111MODULE=on
-
-ADD . /app
 WORKDIR /app
-RUN set -ex \
-  && if [ "${ARCH}" = "amd64" ]; then export GOARCH=amd64; fi \
-  && if [ "${ARCH}" = "arm64v8" ]; then export GOARCH=arm64; fi \
-  && echo "Compiling for $GOARCH" \
-  && go install -v . ./cmd/...
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
 
-FROM $ARCH/alpine:3.12
+# Build app
+RUN CGO_ENABLED=0 go build -o /app/btcd .
+RUN CGO_ENABLED=0 go build -o /app/btcctl /app/cmd/btcctl
+RUN CGO_ENABLED=0 go build -o /app/addblock /app/cmd/addblock
+RUN CGO_ENABLED=0 go build -o /app/findcheckpoint /app/cmd/findcheckpoint
+RUN CGO_ENABLED=0 go build -o /app/gencerts /app/cmd/gencerts
 
-COPY --from=build-container /go/bin /bin
+FROM alpine:3.11.2
+WORKDIR /bin
+COPY --from=builder /app/btcd .
+COPY --from=builder /app/btcctl .
+COPY --from=builder /app/addblock .
+COPY --from=builder /app/findcheckpoint .
+COPY --from=builder /app/gencerts .
 
-VOLUME ["/root/.btcd"]
+ENV USER=user
+ENV PASSWORD=53cr37
 
-EXPOSE 8333 8334
+# TestNet ports.
+EXPOSE 18332
+EXPOSE 18333
+EXPOSE 18334
 
-ENTRYPOINT ["btcd"]
+# SimNet ports.
+EXPOSE 18556
+EXPOSE 18555
+EXPOSE 18554
+
+# RegressionNetParams Port.
+EXPOSE 18334
+
+# Default ports.
+EXPOSE 8332
+EXPOSE 8333
+EXPOSE 8334
+
+CMD [ "btcd", "--simnet", "--rpcuser=${USER}", "--rpcpass=${PASSWORD}"]
