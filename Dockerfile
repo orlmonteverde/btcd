@@ -22,9 +22,6 @@ COPY --from=builder /app/gencerts .
 
 ENV PORT=18334
 
-# RegressionNetParams Port.
-EXPOSE 18334
-
 # Default ports.
 EXPOSE ${PORT}
 
