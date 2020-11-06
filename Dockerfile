@@ -20,25 +20,12 @@ COPY --from=builder /app/addblock .
 COPY --from=builder /app/findcheckpoint .
 COPY --from=builder /app/gencerts .
 
-ENV USER=user
-ENV PASSWORD=53cr37
-
-# TestNet ports.
-EXPOSE 18332
-EXPOSE 18333
-EXPOSE 18334
-
-# SimNet ports.
-EXPOSE 18556
-EXPOSE 18555
-EXPOSE 18554
+ENV PORT=18334
 
 # RegressionNetParams Port.
 EXPOSE 18334
 
 # Default ports.
-EXPOSE 8332
-EXPOSE 8333
-EXPOSE 8334
+EXPOSE ${PORT}
 
-CMD [ "btcd", "--simnet", "--rpcuser=${USER}", "--rpcpass=${PASSWORD}"]
+CMD [ "btcd" ]
